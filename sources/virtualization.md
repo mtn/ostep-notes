@@ -69,3 +69,31 @@ Motivation for the API can be understood by considering how it is more useful th
 Beyond the main three functions, Unix also provides interfaces for interacting with processes. For example, `kill()` is used to send _signals_ to processes including `SIGINT` (interrupt) which generally terminates process and `SIGSTOP` which typically suspends them. Process can also "catch" signals with `signal()`, allowing arbitrary code to be run in response to them.
 
 To remain sound alongside core OS goals like security and isolation, signals can't be sent arbitrarily. If this were the case, a rogue process could terminate all others on the system. Instead, the OS maintains a notion of a user, who must log in, and can then send signals to processes they have started, but not those started by other users on the machine.
+
+## Mechanism: Limited Direct Execution
+
+CPU virtualization is achieved through _time sharing_ -- a process is run for a bit, then swapped out, etc. The OS must do this while maintaining high _performance_ and full _control_.
+
+### Limited Direct Execution
+
+To avoid paying a high performance penalty, user programs are run directly on the CPU. However, this poses two challenges. First, the OS must prevent the process from doing bad things. Second, in order to implement _time sharing_ the OS must have some way to take back control.
+
+#### Problem 1: Restricted Operations
+
+If operations weren't restricted, a user process could do all sorts of malicious things like reading or writing anywhere on disk. To prevent this, a new processor mode called _user mode_ is introduced which isn't allowed to do things like make IO requests without raising an exception (as distinct from _kernel mode_ which is unrestricted).
+
+When user processes need to perform privileged operations, they issue a _system call_. With this system call, the user includes a system call number (among the values supported by the OS). In response, the OS executes a _trap_ instruction, jumping into the kernel and raising the privilege level and conditionally executing the call. The kernel refers to a _trap table_ to tell which code to execute (i.e. which _trap handler_) based on the exception that was raised. This table is initialized with the OS boots up and remains constant until the program is rebooted.
+
+After, a _return from trap_ instruction is executed, reducing the privilege level and returning control to the user process. Logistically, this involves saving the caller's registers so that the program can return to normal execution after completion.
+
+Restricted operations are thus supported by setup at boot-time along with having two privilege levels.
+
+#### Problem 2: Switching Between Processes
+
+Because the OS cedes control in the direct execution model, it isn't obvious how it will be able to take it back. Early systems attempted a _cooperative approach_, where the OS trusts processes to give up control. This obviously is problematic because it can't deal with malicious or problematic programs that don't cede control.
+
+Again, hardware support is used in the form of a _timer interrupt_. At configured (at boot-time) intervals, a timer will go off, transferring control to an interrupt handler and thus granting control to the OS.
+
+After a timer interrupt occurs, the OS _scheduler_ decides whether to cede control back to that running process to switch to a new one. _Context switching_ requires saving registers and restoring those from the newly-running process.
+
+All this is complicated by the fact that an interrupt could occur during the processing of a system call, for example. Solutions to this sort of problem might involve locking, or temporarily disabling interrupts.
