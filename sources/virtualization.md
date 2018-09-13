@@ -203,3 +203,19 @@ To deal with the unfairness that can arise due to randomness, there exist determ
 Linux's scheduler aims to evenly divide CPU among competing processes. To achieve this, is uses a concept called `vruntime`. Running processes accumulate `vruntime`, and whenever a scheduling decision is made, the process with the _lowest_ `vruntime` is chosen. Parameters tune things like how frequently the scheduler preempts running processes, with the tradeoff being between perfect fairness and performance. Other parameters like `min_granularity` prevent the scheduler from preempting jobs too frequently, especially when there are many competing jobs at a time.
 
 Rather than using tickets, Unix has a notion of "niceness", where programs that have more negative niceness have higher priority. Red-black trees (balanced binary trees) are used to ensure that the scheduler must do minimal work while selecting the next process to run.
+
+## Multiprocessor Scheduling
+
+Multicore systems face classes of problems that don't exist on single core ones. For example, we can consider the problem of _cache coherence_. On a single core system, fetching a value from cache is a straightforward process. However, with multiple processors and multiple caches, we can easily see that caches can drift out of correctness. Hardware support solves this basic problem via _bus snooping_: each cache pays attention to all updates, and invalidates its own entries when needed.
+
+There's also the need to use _locks_ (or _lock-free_ data structures) to avoid data synchronization issues. Lastly, multiprocessor schedulers must also consider _cache affinity_: it's better to run a process on the same CPU each time if possible, where the required data might be ready in cache.
+
+### Easy Solution: Single-Queue Scheduling (SQMS)
+
+Basically the easiest possible solution to the problem of multicore scheduling is using a single queue (SQMS). However, this solution is not _scalable_. For example, locks are required to ensure that operations like access to the single queue run properly, resulting in a performance cost. Also, SQMS completely ignores the problem of cache affinity.
+
+### Multi-Queue Scheduling (MQMS)
+
+Using multiple queues solves many of the issues of SQMS. New jobs are placed onto one scheduling queue according to some policy, and remain there. There is less or no need for locks, and thus also less cache contention. Moreover, processes generally stay in one queue, which leads to good cache affinity.
+
+However, we introduce a new problem of _load balancing_. In the worst case, for example, we could have all the jobs on one of two CPUs finish, leading one CPU to sit idle while the other continues to work (poor utilization). The solution is _migration_, which moves jobs from one CPU to another to achieve load balance. This is implemented with _work stealing_, where queues peek at others and take jobs from them if they are significantly less full. Naturally, there's a tradeoff between the overhead of checking queues frequently and not checking frequently enough.
