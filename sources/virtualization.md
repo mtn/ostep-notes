@@ -98,7 +98,7 @@ After a timer interrupt occurs, the OS _scheduler_ decides whether to cede contr
 
 All this is complicated by the fact that an interrupt could occur during the processing of a system call, for example. Solutions to this sort of problem might involve locking, or temporarily disabling interrupts.
 
-## Scheduling
+## Scheduling: Introduction
 
 Policies govern how operating systems make scheduling decisions.
 
@@ -135,5 +135,41 @@ IO complicates things, because a single process ends up having periods where no 
 ### Considering Unknown Time Requirements
 
 Much of the prior discussion makes sense under the unrealistic assumption that we can know how long each job will take to run. Of course, in practice this isn't possible. It will turn out that operating systems use information from the recent past to make predictions about the future, here (known as a _multi-level feedback queue_).
+
+## Scheduling: The Multi-Level Feedback Queue
+
+The aim of MLFQ is to optimize turnaround while simultaneously minimizing turnaround time, all without knowledge like how long a process will take to run.
+
+### MLFQ: Basic Rules
+
+An MLFQ consists of a number of queues, each with different priority levels. Jobs that are ready to be run on the queue, and at any given moment the OS chooses from a process from a high priority queue to run. Among jobs present in the same queue (i.e. they have the same priority), RR is used.
+
+Job priority is _varied_ based on _observed behavior_, and thus _changes_ over time.
+
+#### Changing Priority: Attempt 1
+
+Consider the rules
+
+- New jobs are given top priority
+- Jobs that take up an entire time slice while running are demoted
+- Jobs that don't stay where they are
+
+Intuitively, what happens is the system first assumes that the process is short-running, and continually updates its assumption and correspondingly demotes it (so that new short jobs that come in have a chance to finish) as it realizes that how long it's going to take.
+
+This system is obviously good for short-running jobs, but it's also good for jobs that do a lot of IO, which look to the scheduler like a stream of short-running jobs. However, loads of interactive jobs can prevent long-running processes from ever running (cause them to _starve_). A malicious application developer could easily game this to monopolize the CPU, relinquishing control just before the end of each time slice to retain high priority. Also, a process that changes its behavior can't be re-promoted.
+
+#### The Priority Boost: Attempt 2
+
+To combat starvation, we can try to periodically boost the priority of all jobs, like by promoting everything to the top queue periodically. At minimum, this guarantees against starvation, since a long running process will run at least a bit after each boost. Setting the constant is difficult, since we need to balance between not letting long-running processes starve and allowing interactive jobs sufficient access to the CPU.
+
+#### Better Accounting: Attempt 3
+
+One way to prevent CPU gaming mentioned in Attempt 1 is to track an allotment of CPU time. Thus, relinquishing the CPU just before the timer would no longer be useful, as the process would be demoted soon afterwards.
+
+### Tuning MLFQ
+
+There are also questions about how to set other MLFQ parameters. For example, we need to decide how many queues there should be, and how long time slices should be for each queue. For example, many implementations have short time slices for high-priority queues, but longer ones for the long-running processes that inhabit lower priority ones.
+
+
 
 
