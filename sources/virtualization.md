@@ -170,6 +170,36 @@ One way to prevent CPU gaming mentioned in Attempt 1 is to track an allotment of
 
 There are also questions about how to set other MLFQ parameters. For example, we need to decide how many queues there should be, and how long time slices should be for each queue. For example, many implementations have short time slices for high-priority queues, but longer ones for the long-running processes that inhabit lower priority ones.
 
+## Scheduling: Proportional Share
 
+Proportional share schedulers optimize for fairness (guaranteeing each job a certain percentage of CPU time) rather than turnround or response time. This is known as _lottery scheduling_: a lottery is periodically held to determine which process gets to run next.
 
+### Tickets Represent Shares
 
+_Tickets_ represent the share of a resource that a process should receive, so if process $A$ has $75$ tickets and $B$ has $25$, then $A$ gets 75% of CPU time probabilistically.
+
+### Ticket Mechanisms
+
+Tickets can be manipulated. For example, a user can allocate their tickets to their jobs however they choose (_ticket currency_). Tickets can also be _transferred_, and even their value can be _inflated_ within a group of trusted processes.
+
+### Implementation
+
+Lottery scheduling can be implemented extremely easily. All we need is a random number generator, knowledge of the total number of tickets, and access to the process list. Then, finding the winner is just like indexing into a list.
+
+### Unfairness
+
+In expectation, a random scheduler will allocate resources in accordance with the ticket distribution. Because this doesn't always happen, especially with small sample sizes, we can quantify the drift using an _unfairness metric_.
+
+### Ticket Assignment
+
+It isn't obvious how to allocate tickets, particularly without getting information from the user.
+
+### Stride Scheduling
+
+To deal with the unfairness that can arise due to randomness, there exist deterministic algorithms like _stride_. However, the tradeoff these make is that they require that we maintain some global state.
+
+### Linux's Completely Fair Scheduler
+
+Linux's scheduler aims to evenly divide CPU among competing processes. To achieve this, is uses a concept called `vruntime`. Running processes accumulate `vruntime`, and whenever a scheduling decision is made, the process with the _lowest_ `vruntime` is chosen. Parameters tune things like how frequently the scheduler preempts running processes, with the tradeoff being between perfect fairness and performance. Other parameters like `min_granularity` prevent the scheduler from preempting jobs too frequently, especially when there are many competing jobs at a time.
+
+Rather than using tickets, Unix has a notion of "niceness", where programs that have more negative niceness have higher priority. Red-black trees (balanced binary trees) are used to ensure that the scheduler must do minimal work while selecting the next process to run.
