@@ -1,4 +1,4 @@
-# Virtualization
+# CPU Virtualization
 
 > Each peach-eater can eat their own _virtual_ peach, even though there's only one _physical_ peach.
 
