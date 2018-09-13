@@ -97,3 +97,43 @@ Again, hardware support is used in the form of a _timer interrupt_. At configure
 After a timer interrupt occurs, the OS _scheduler_ decides whether to cede control back to that running process to switch to a new one. _Context switching_ requires saving registers and restoring those from the newly-running process.
 
 All this is complicated by the fact that an interrupt could occur during the processing of a system call, for example. Solutions to this sort of problem might involve locking, or temporarily disabling interrupts.
+
+## Scheduling
+
+Policies govern how operating systems make scheduling decisions.
+
+### Workload Assumptions
+
+The _workload_ is the set of all processes running on a system. Schedulers must make some assumptions about their workloads, and also employ a _scheduling metric_ to compare different possible policies. For example, a simple metric is turnaround time, the amount of time a job takes to complete. Alternatively, we could assess _fairness_ (or some combination).
+
+#### Simplest: FIFO
+
+The simplest possible policy is FIFO, which serves processes in the order they arrive. However, this is clearly not optimal because serving a single long-running process while a number of short processes wait can drive up average turnaround time (know as the _convoy effect_).
+
+#### Shortest Job First (SJF)
+
+Just running the shortest jobs first significantly reduces the average turnaround time (to an optimal level, if we could assume that all jobs arrive at the same time). However, SJF falls apart if jobs arrive at different times -- the longest job could arrive first and we'd be back where we started.
+
+#### Shortest Time-to-Completion First (STCF)
+
+We can deal with this if the scheduler is given the ability to preempt jobs. When the shorter jobs arrive after the long one has started, if running them right away would let them finish earlier, then the scheduler could preempt the long running job and only finish it after processing the short ones. This again improves turnaround time relative to SJF
+
+### Another Metric: Response Time
+
+Interactive systems demand that we pay attention to response time, motivating a new metric. By this metric, it's important that a process at least be started soon after its arrival. The previously processed systems are adequate for batch-processed systems, but not so much for interactive systems -- we don't want cases where one process has to wait for two others to finish completely before it gets started at all.
+
+#### Round Robin
+
+Motivated by improving average response time, Round Robin runs jobs for _time slices_ (some multiple of the timer-interrupt period) and then switches to the next, cycling through a run queue until jobs are finished. By cycling through each job quickly, rather than running one after another completion, RR achieves much improved average response time. Of course, we improve by this metric the shorter we make the _time slices_, but must avoid making them too small where the cost of context-switching would dominate.
+
+However, Round Robin is a poor policy by the turnaround time metric. Intuitively, this makes sense -- each job gets stretched out as long as it can. This makes round robin nearly the worst possible policy by this metric. However, it is _fair_ -- CPU resources are evenly distributed among active processes.
+
+### Considering IO
+
+IO complicates things, because a single process ends up having periods where no useful work can be done. To get around this, the CPU treats each "burst" (normal period, not waiting on an IO request) as a separate job. This allows for _overlap_, which is generally good for resource utilization.
+
+### Considering Unknown Time Requirements
+
+Much of the prior discussion makes sense under the unrealistic assumption that we can know how long each job will take to run. Of course, in practice this isn't possible. It will turn out that operating systems use information from the recent past to make predictions about the future, here (known as a _multi-level feedback queue_).
+
+
