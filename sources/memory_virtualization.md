@@ -65,4 +65,22 @@ Thus far, we've introduced to
 
 - The OS must provide _exception handlers_, prepared at boot time, so it knows what to do when exceptions occur.
 
-Base and bounds is a fairly simple implementation that meets some of the important goals of memory virtualization (transparency, efficiency, protection). However, there are also downsides. In particular, there can be substantial _internal fragmentation_, when lots of space between the base and bounds unit isn't used. This motivates a generalization called _segmentation_.
+## Segmentation
+
+Base and bounds is a fairly simple implementation that meets some of the important goals of memory virtualization (transparency, efficiency, protection). However, there are also downsides. In particular, there can be substantial _internal fragmentation_, when lots of space between the stack and heap isn't used. On a 32 bit system, each program would have an address space of nearly 4 GB, but would typically use only a few MB. This motivates a generalization called _segmentation_.
+
+### Segmentation: Generalized Base/Bounds
+
+Because _code_, _stack_, and _heap_ are logically separate segments, by placing each separately into different parts of physical memory we can only allocate space to used memory. To support this, we have three pairs of _base_-_bounds_ pairs -- one for each segment. We can tell which segment an address belongs to explicitly by checking bits in the address (ex. the top two bits, and the rest storing the offset) or implicitly based on usage. Also, since the stack grows in a different direction from the heap, we require an additional hardware register tracking which direction a segment grows.
+
+### Support for Sharing
+
+In the interest of efficiency, the OS can also support memory sharing. For example, the OS might be able to save memory by having several processes read from the same memory. Additional _protection bits_ are used to implement this, indicating the read/write permissions a program has for each segment. When a user program violates the permissions specified by the protection bits, hardware raises an exception.
+
+### Fine-grained vs. Coarse-grained Segmentation
+
+Just as segmentation split up segments more finely than base-bounds pairs, various operating systems like Multics have attempted even more fine-grained segmentation. To manage this, they would maintain some sort of _segment table_. The goal was that the OS could use the additional information to better organize memory.
+
+### OS Support
+
+Segmentation pretty effectively solves the internal fragmentation problem of base-bounds, but introduces new ones. As processes start, memory becomes full of little holes, making it progressively harder to allocate new segments (known as _external fragmentation_). A naive approach is to periodically stop and relocate all processes, compacting memory. This is expensive though, so practical algorithms like _best-fit_ and the _buddy algorithm_ try to manage free space as well as possible. It's difficult to come up with a good general solution though.
