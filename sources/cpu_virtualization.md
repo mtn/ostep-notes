@@ -66,7 +66,7 @@ Motivation for the API can be understood by considering how it is more useful th
 
 ### Process Control and Users
 
-Beyond the main three functions, Unix also provides interfaces for interacting with processes. For example, `kill()` is used to send _signals_ to processes including `SIGINT` (interrupt) which generally terminates process and `SIGSTOP` which typically suspends them. Process can also "catch" signals with `signal()`, allowing arbitrary code to be run in response to them.
+Beyond the main three functions, Unix also provides interfaces for interacting with processes. For example, `kill()` is used to send _signals_ to processes including `SIGINT` (interrupt) which generally terminates process and `SIGSTOP` which typically suspends them. Processes can also "catch" signals with `signal()`, allowing arbitrary code to be run in response to them.
 
 To remain sound alongside core OS goals like security and isolation, signals can't be sent arbitrarily. If this were the case, a rogue process could terminate all others on the system. Instead, the OS maintains a notion of a user, who must log in, and can then send signals to processes they have started, but not those started by other users on the machine.
 
