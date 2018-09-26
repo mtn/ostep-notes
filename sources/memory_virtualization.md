@@ -185,3 +185,27 @@ The basic function of the page table is mapping virtual page numbers to physical
 ### Paging: Also too slow
 
 Consider the process of carrying out `mov 21 %eax` (21 is an address). Using on bits in the address, we first have to translate this into a physical address, involving one lookup. Then, based on the values of bits in the page table, we either perform another lookup to fulfill the request, or return some sort of exception. This takes two lookups, which can be more than twice as expensive as just one.
+
+## Paging: Faster Translations (TLBs)
+
+Paging has benefits but requires storing a large amount of memory information (potentially hundreds of megabytes), and decreases performance since resolving any virtual address involves a extra lookup. To address this problem, we introduce new hardware: the _translation-lookaside buffer (TLB)_. It's a part of the MMU, and caches virtual address mappings so popular ones can be quickly resolved.
+
+### TLB Basic Algorithm
+
+This is normal caching: hardware checks the TLB for the address translation, and if it's there we have a _TLB hit_. Otherwise, we have a _miss_, load it into the _TLB_, and return the value. Based on _spatial and temporal locality_ (re-references nearby in space and time), under normal usage with caching our _TLB_ hit rate can be substantially improved.o
+
+### Handling TLB misses
+
+In theory, TLB misses could be resolved in either hardware or software. In early systems this was done in hardware, but on modern systems hardware simply raises an exception, transferring control to a special trap handler. The main advantage is flexibility: hardware has to do very little and it's easy to swap out different structures and handlers for TLB misses.
+
+### TLB Contents
+
+TLBs basically store maps from VPNs to PFNs, along with some additional bits to indicate if mapping are _valid_, _protected_, etc. It's a _fully associative cache_, meaning that any given entry can end up anywhere in the cache. Thus, the full cache is search in parallel in hardware.
+
+### Context Switches
+
+One problem is that mappings are only valid in the context of a single process, so if the OS preempts it and starts another, everything in the TLB would be invalid. The simple solution is to just flush the TLB for every context switch, but this can be costly. One solution is hardware support to indicate which process an address mapping belongs to.
+
+### Replacement Policy
+
+Adding an entry to the TLB cache might involve removing something that's already there. To do this, we employ a policy like _least-recently used (LRU)_.
