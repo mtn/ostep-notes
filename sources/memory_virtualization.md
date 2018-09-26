@@ -84,3 +84,80 @@ Just as segmentation split up segments more finely than base-bounds pairs, vario
 ### OS Support
 
 Segmentation pretty effectively solves the internal fragmentation problem of base-bounds, but introduces new ones. As processes start, memory becomes full of little holes, making it progressively harder to allocate new segments (known as _external fragmentation_). A naive approach is to periodically stop and relocate all processes, compacting memory. This is expensive though, so practical algorithms like _best-fit_ and the _buddy algorithm_ try to manage free space as well as possible. It's difficult to come up with a good general solution though.
+
+## Free Space Management
+
+The challenge is managing free space is figuring out how to avoid fragmentation as variable-sized chunks of memory get allocated. We want to avoid situations when we're unable to satisfy a memory request even though there's enough total space, just because there isn't enough contiguous space in memory.
+
+There are several possible interfaces for user-level memory allocators. The familiar one is `malloc(size)` and `free()`, and the memory managed by the library is known as the _heap_. Under the hood, there's some sort of _free list_ to track all the chunks of memory that are unallocated within the region of managed memory.
+
+As we consider ways to minimize _external fragmentation_, we'll assume for simplicity that _compaction_ isn't possible, and that the managed memory reason is a contiguous section of memory.
+
+### Low-level Mechanisms
+> a few general techniques that are used in most allocators
+
+#### Splitting and Coalescing
+
+Suppose we have the following memory layout of 30 bytes:
+
+|| 10 free || 10 allocated || 10 free ||
+
+We won't be able to satisfy a request for anything more than 10 bytes, but if we get a request for less (say 1 byte) we don't want to use up a full 10 bytes to satisfy it. Instead, we _split_ one of the free regions into 1-byte and 9-byte sections.
+
+Conversely, if the 10-byte chunk is allocated, we want to make sure we get
+
+|| 30 free ||
+
+instead of
+
+|| 10 free || 10 free || 10 free ||
+
+To do this, allocators _coalesce_ contiguous free memory into one larger chunk.
+
+#### Tracking The Size Of Allocated Regions
+
+`free` doesn't take a `size`, so the allocator needs to be able to tell this itself. To do so, it stores a header with each block. Thus, a request to allocate `N` bytes results in the allocator searching for `N + sizeof(header)` bytes.
+
+#### Embedding a Free List
+
+A straightforward implementation of a free list is a linked list, but normally we build these on the heap by calling `malloc`, which is impossible within the allocation library itself. The free list is instead maintained by embedding data in the free blocks: the size of the block and a pointer to the next free block. Thus, just by keeping a head pointer, we can traverse forwards like an ordinary linked list. It's also easy to tell when we need to coalesce in this situation, just by looking at the distance away of the next free block and the size of the newly freed block.
+
+#### Growing the heap
+
+When we don't have enough memory to satisfy a request the simplest thing we can do is fail and return `NULL`. Allocators typically request more memory from the OS through calls to `sbrk`.
+
+### Basic Strategies
+
+It's hard to come up with a generally optimal solution, because different strategies perform differently based on different inputs.
+
+#### Best fit
+
+Exhaustively searches through all blocks to find the smallest one that is still large enough, and return that. This is expensive, since every request involves searching through the full free list.
+
+#### Worst fit
+
+In an effort to leave big chunks free rather than lots of little ones (which makes it harder to satisfy requests), worst fit finds the largest block, splits it, and returns the allocated memory. This also involves an exhaustive search, and studies have shown that it leads to high fragmentation.
+
+#### First fit
+
+First fit finds the first block that is large enough to satisfy a request and uses it. One downside is the beginning of the free list can become polluted with lots of small blocks. We also need to arbitrarily specify an ordering, like address based ordering.
+
+#### Next fit
+
+To try to avoid the pollution issue of first fit, next fit keeps a pointer to where it stops each search, and picks up at that point instead of always starting at the front of the list. Like first fit, it stops at the first block that fits.
+
+### Other Approaches
+
+There are lots of more complex policies than the ones mentioned.
+
+#### Segregated Lists
+
+If we know we'll have to satisfy a bunch of requests for similar-sized memory, we can try to prepare by keeping blocks of that size ready and forwarding other requests on to a general purpose allocator. One implementation is _slab allocation_, which prepares memory for a bunch of frequently used data types at boot time.
+
+#### Buddy Allocation
+
+In order to make coalescing easier, _buddy allocation_ satisfies each request by viewing all blocks as sized as a power of 2 and recursively dividing the space up to the smallest size possible. Thus, every block has a "buddy", and when its freed, we can check if the buddy is free and coalesce, recursively. The scheme can suffer from internal fragmentation though, since not all requests neatly fit in $2^n$ sized containers.
+
+#### Other Ideas
+
+Other allocators try to address scaling problems using fancier data structures like balanced binary trees, etc.
