@@ -161,3 +161,27 @@ In order to make coalescing easier, _buddy allocation_ satisfies each request by
 #### Other Ideas
 
 Other allocators try to address scaling problems using fancier data structures like balanced binary trees, etc.
+
+## Paging
+
+On component of allocation is dealing with variable-sized chunks of memory and trying to avoid the problem of segmentation. Another, called _paging_ deals with fixed-size chunks. Memory is divided into fixed-size chunks called _pages_, and memory can be viewed as an array of fixed sized _page frames_. The goal, like before, is minimizing space and time overheads.
+
+The basic advantage is simplicity. Because all pages have the same size, if a process needs 4 pages it can just be given the first 4 from the free list. Also, it can support better abstractions of the address space. To keep track of everything, the OS keeps a per-process _page table_, which stores _address translations_ so we can figure out what physical memory the pages map to. Addressing works similarly to before; virtual addresses are split into a _virtual page number_ and an offset. The OS checks which physical frame the virtual page is stored at, along with the offset translates the address.
+
+### Where are Page Tables Stored?
+
+Suppose we have 4 KB pages. Then, in a 32 bit address space, that'd leave 20 bits for page numbering, or about a million such pages, _per process_. This would be ridiculously larger still in a 64 bit address space. This rules out using hardware like the MMU. Instead, the table is stored in memory.
+
+### What's stored in the Page Table?
+
+The basic function of the page table is mapping virtual page numbers to physical addresses. The simplest way to do this is using a _linear page table_, which can be indexed like an array using a page number. In the table, we several store useful bit of information:
+
+- _Valid bit_: is a translation is valid? (is the page being used?)
+- _Protection bits_: what are read/write permissions?
+- _Present bit_: is the page in memory, or on disk?
+- _Dirty bit_: has it been modified since being brought into memory?
+- _Reference bit_: has the page been accessed? Useful for telling what's popular to be kept in memory.
+
+### Paging: Also too slow
+
+Consider the process of carrying out `mov 21 %eax` (21 is an address). Using on bits in the address, we first have to translate this into a physical address, involving one lookup. Then, based on the values of bits in the page table, we either perform another lookup to fulfill the request, or return some sort of exception. This takes two lookups, which can be more than twice as expensive as just one.
