@@ -192,7 +192,7 @@ Paging has benefits but requires storing a large amount of memory information (p
 
 ### TLB Basic Algorithm
 
-This is normal caching: hardware checks the TLB for the address translation, and if it's there we have a _TLB hit_. Otherwise, we have a _miss_, load it into the _TLB_, and return the value. Based on _spatial and temporal locality_ (re-references nearby in space and time), under normal usage with caching our _TLB_ hit rate can be substantially improved.o
+This is normal caching: hardware checks the TLB for the address translation, and if it's there we have a _TLB hit_. Otherwise, we have a _miss_, load it into the _TLB_, and return the value. Based on _spatial and temporal locality_ (re-references nearby in space and time), under normal usage with caching our _TLB_ hit rate can be substantially improved.
 
 ### Handling TLB misses
 
@@ -209,3 +209,22 @@ One problem is that mappings are only valid in the context of a single process, 
 ### Replacement Policy
 
 Adding an entry to the TLB cache might involve removing something that's already there. To do this, we employ a policy like _least-recently used (LRU)_.
+
+## Paging: Smaller Tables
+> potentially confusing -- read carefully
+
+The problem with array-based page tables is that they take up a lot of memory: potentially hundreds of megabytes in a 32 bit address space and much more in a 64 bit one. An apparent solution to this is just allocating larger pages, but this increases space wastage within pages -- _internal fragmentation_.
+
+A better solution is a hybrid approach. One page table can be used per code segment (stack, heap, code) rather than one for the entire process, and we can keep a _bounds_ register to keep track of the last allocated page (looking beyond this will raise an exception). This dramatically reduces space wastage. Where we previously might have had lots of unused pages between code segments, this is completely eliminated. However, this approach remains susceptible to fragmentation: a sparse heap could result in lots of wasted space within a page, and page table entries being variable sized reintroduces problems previously encountered when dealing with segmentation.
+
+### Multi-level Page Tables
+
+The problem we were trying to get rid of by introducing segmentation was having to keep track of of a large number of invalid page table entries explicitly (just to have an "invalid" bit). Another approach, which doesn't use segmentation, is a tree-like structure (_page table directory_) where we keep track of pages of page table entries, and don't store that full page if none of the entries are valid. Thus, for a given entry we can either tell where it is (if it's valid), or know that it's invalid if it's not there. It's kind of like storing a list of pointers with indicators of which are free to dereference, rather than copies in place. The downsides are a performance hit (two references on a TLB miss), plus a overall increase in complexity.
+
+### Inverted Page Tables
+
+Rather than maintaining a page table per process, we could keep a page table per physical page, storing an indication of which process is using it, and the corresponding virtual address. Then, figuring out how to resolve a mapping just resolves to searching using some efficient data structure.
+
+### Swapping Page Tables to Disk
+
+When memory gets tight, pages can be _swapped_ onto disk.
