@@ -228,3 +228,17 @@ Rather than maintaining a page table per process, we could keep a page table per
 ### Swapping Page Tables to Disk
 
 When memory gets tight, pages can be _swapped_ onto disk.
+
+## Beyond Physical Memory: Mechanisms
+
+If we don't make the simplifying assumption that the address space is so small that it can all fit into memory, we have to figure out how to support larger address spaces. Typically, this is done by stashing portions of the address space into larger memory like hard drives. The goal is transparently supporting a larger address space than physical memory. This is especially important in multiprogramming, since we have to manage the address space of much more than one program. Also, it's a much easier-to-user interface for the programmer.
+
+### Swap Space
+
+Space allocated on the hard disk for storing pages is called _swap space_. When a request for memory is made, first the TLB (cache) is checked. If it isn't there, then physical memory is checked. If it still isn't there (it could still be in swap space), a _page fault_ is raised. This invokes a _page fault handler_, which will usually schedule retrieval from swap space (with the process blocking till the request resolves). If there's no room, the OS will _page out_ one or more pages based on some _page replacement policy_. In practice, many operating systems do something just a bit more complicated: they try to keep the amount of free space in memory between some _high and low watermarks_. From a high level, this is the flow of resolving a TLB miss:
+
+1) If the page is _valid_ and _present_, we grab the frame number from the page table an retry the request.
+2) Otherwise, we generate a page fault. This could load the page.
+3) The page could also not be valid, which raises another exception.
+
+And all this happens transparently to the process.
