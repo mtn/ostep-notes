@@ -242,3 +242,33 @@ Space allocated on the hard disk for storing pages is called _swap space_. When 
 3) The page could also not be valid, which raises another exception.
 
 And all this happens transparently to the process.
+
+## Beyond Physical Memory: Policies
+
+Having a well-designed policy for managing how pages are swapped in and out of memory is crucial because getting it wrong can result in an orders-of-magnitude performance hit. This is a basic _caching_ problem: we want to minimize the _average memory access time (AMAT)_. Even small changes in miss rate can have dramatic effects on _AMAT_, since the time cost of accessing disk is orders of magnitude more than accessing memory.
+
+### Optimal Policy: Furthest-Out
+
+The optimal policy, which is useful to keep in mind as a point of comparison, would be to evict the thing that's needed furthest in the future.
+
+### A Simple Policy: FIFO
+
+FIFO is simple to implement, has no ability to gauge the importance of each page in the cache. When an eviction is necessary, it just kicks out the oldest entry. Performance is much worse than optimal.
+
+### Another Simple Policy: Random
+
+Another simple policy is randomly picking what to evict. Performance obviously varies.
+
+### Using History: LRU
+
+Based on the _principle of locality_, pages could be evicted based on how recently they were accessed. General reasoning about locality motivates policies like _least recently used (LRU)_ and _least frequently used (LFU)_.
+
+The cost of these policies is that they can be expensive to implement: even with hardware support for time-stamping memory accesses, the OS would still have to scan through an array of timestamps. We could easily eat up performance gains performing this sort of maintenance. A solution is approximation: hardware sets a special _use bit_ on each page every time its accessed, and the OS periodically clears them. Then, when an eviction is necessary, the first item without its use bit set is evicted. We can also keep a dirty bit, indicating if a page must be written through to be evicted (which is a more expensive than evicting a non-dirty page for free).
+
+### Other Policies
+
+Other approaches include pre-fetching pages that have a high change of being required, and clustering writes in batches rather than writing through one at a time.
+
+### Thrashing
+
+One final problem is _thrashing_ which happens when there just isn't enough memory for the running processes, leading to continues expensive evictions. Some early systems practiced _admission control_, temporarily running a subset of processes. Linux runs an _out-of-memory killer_ which randomly selects a process to be terminated.
