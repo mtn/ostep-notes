@@ -272,3 +272,22 @@ Other approaches include pre-fetching pages that have a high change of being req
 ### Thrashing
 
 One final problem is _thrashing_ which happens when there just isn't enough memory for the running processes, leading to continues expensive evictions. Some early systems practiced _admission control_, temporarily running a subset of processes. Linux runs an _out-of-memory killer_ which randomly selects a process to be terminated.
+
+## Complete Virtual Memory Subsystems
+> basic end-to-end principles through examination of one early system and Linux
+
+### VAX/VMS Virtual Memory
+
+VMS is a good case to look at because it was designed to run on devices of varying power, and also had to deal with certain cases of suboptimal hardware support. VMS systems used the previously mentioned hybrid of segmentation and paging, with a 32-bit address space and 512 byte pages. To avoid excessive memory wastage, the user address space was segmented in two, with a base and bounds register for each. Further, user page tables are stored in kernel virtual memory, making address translation more complicated but unifying page swapping. Also, kernel memory was mapped into the user address spaces, but protected using a bit.
+
+Eviction was not based on recency of reference (no reference bit was kept), but instead aimed to use memory more fairly. This was done using segmented FIFO replacement, where each process could keep a certain number of pages in memory till it had to start evicting them. However, instead of directly writing through evictions, VMS systems kept a global _second chance_ list. Page faults would try to read from this before going to disk, and clean pages could be claimed from here. It's basically a extra buffer, without segmentation. Writes could also easily be batched together from the global dirty list.
+
+Two other optimizations from VMS are _demand zeroing_ which lazily zeros pages (necessary for security reasons), and _copy-on-write_, which delays copies until a write is performed, keeping a reference to the copied page at first that is read-only and only trapping when a write is attempted.
+
+### Linux Virtual Memory
+
+The Linux virtual memory system also separates kernel and process address spaces, with kernel memory being the same for all processes. There are two types of kernel addressed: _logial addresses_ which directly map to physical memory (and thus provide significant guarantees), and _virtual addresses_ which provides weaker guarantees but are easier to allocate. Most kernel data structures reside in logical memory.
+
+#### Page Table Structure
+
+The page table is a multi-level structure, with one page table per process. Since the 64 bit address space is much larger than practically necessary, the top 16 bits in virtual addresses go unused, with other used to index into levels of the table. There's also support for _huge pages_ which allows for a reduced TLB miss rate, at the cost of potentially more internal fragmentation. Various subsystem data, like file data are also kept in page cache to speed up overall efficiency. The replacement policy is a modified version of LRU: two queues are kept, based on different activity levels, and evictions are done from the inactive queue using approximation methods. There are also various defenses against attacks like buffer overflows.
