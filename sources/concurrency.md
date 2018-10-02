@@ -153,3 +153,28 @@ request fails, and have the OS wake them up when the lock becomes available.
 This is just like yielding, except the process ends up asleep and doesn't burn
 CPU cycles. These ideas are implemented in terms of `park` and `unpark` on
 Solaris and as futexes on Linux.
+
+## Lock-based Concurrent Data Structures
+
+When thinking about how to allow concurrent access to data in data structures,
+we want to add the locks such that operations are all _correct_, without
+sacrificing too much _performance_.
+
+### Concurrent Counter
+
+A simple "data structure" is just a counter that gets incremented across several
+threads. By acquiring a lock before modifying it and releasing it, we can
+guarantee correctness. Even in this case, we can observe how poorly performance
+scales (the goal is _perfect scaling_).
+
+### Scalable Counting
+
+A tradeoff to improve performance of counters are _approximate counters_. Each
+CPU keeps its own counter (with a lock, so threads on that CPU can contend for
+it), and periodically synchronizes with a global counter by acquiring the global
+lock.
+
+### More Complex Data Structures
+
+In general, scaling for more complex data structures involves protecting
+specific parts of the structure with locks, rather than having one global lock.
