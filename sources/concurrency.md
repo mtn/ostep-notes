@@ -278,3 +278,74 @@ left).
 Semaphores can be implemented with a lock, a condition variable, and a state
 variable. Basically, the entire `wait` and `post` operations are locked,
 ensuring they are updated atomically.
+
+## Common Concurrency Problems
+
+In general, concurrent programming is difficult. Concurrency bugs fall into two
+categories: _deadlock_ bugs and _non-deadlock_ bugs.
+
+### Non-deadlock Bugs
+
+There are two major non-deadlock bugs: _atomicity violation_ bugs and _order
+violation_ bugs.
+
+- _Atomicity-violation bugs_ arise when we embed incorrect assumptions about
+  operation atomicity into our code. For example, if we check is a value is
+  non-null and then do something else, but change it's value to null in another
+  thread, we'd have an atomicity violation (because the thread that checks and
+  then uses the value could be preempted after checking and before using). It's
+  straightforward to fix these bugs with locks.
+
+- _Order-violation bugs_ arise when we embed incorrect order assumptions. For
+  example, a thread might be preempted before it finishes initializing a value,
+  causing a null pointer dereference in another thread. These bugs can generally
+  be fixed using a combination of condition variables and locks (ex. sleep till
+  initialization is done).
+
+### Deadlock Bugs
+
+Deadlock related bugs arise when all of the following conditions hold:
+
+- _Mutual exclusion_: threads claim locked resources
+- _Hold-and-wait_: threads claim resources and hold them while they wait for
+  other to become available
+- _No preemption_: once something grabs a lock, it holds it indefinitely
+- _Circular wait_: there's a circular chain of resources, with each holding
+  resources that are being requested by their successor (like the dining
+  philosophers problem)
+
+Thus, to avoid deadlock bugs we can focus on resolving _any_ of these problems:
+
+- _Circular wait_: we can impose total or (carefully constructed) partial
+  orderings. Imposing a linear ordering guarantees no cycles, but relies on the
+  programmers to get right.
+- _Hold-and-wait_: we can make lock-grabbing atomic, using a global lock. This
+  decreases concurrency though.
+- _No preemption_: we want to deal with this problem, indirectly, because often
+  when we're trying to acquire a lock we're holding one or more others. Thus, we
+  don't want to end up going to sleep while waiting for the lock. This problem
+  is solved with `try_lock`, which tries to acquire the lock, and returns an
+  error if it fails. This allows us to avoid situations where one lock tries to
+  acquire two locks, gets the first, but fails to acquire the second (which is
+  being held by another thread, which is waiting for the first lock).
+- _Mutual exclusion_: removing mutual exclusion is generally fairly difficult,
+  and the idea behind _lock-free data structures_. Generally, more powerful
+  hardware instructions are used in such a way that data races aren't possible,
+  at the cost of increased implementation difficulty.
+
+### Avoidance via Scheduling
+
+A cool (but not very practical) idea is to avoid deadlock by scheduling in such
+a way that code that acquires the same locks isn't not scheduled to run at the
+same time. The performance penalty is can be high though, since code is made
+significantly less concurrent. More importantly, it requires global information
+about lock holding behavior that isn't generally known ahead of time.
+
+### Detect-and-Recover
+
+A final approach is to run code that can deadlock, but setup mechanisms to
+detect when it occurs and restart the system (doing whatever cleanup is
+necessary beforehand).
+
+
+
