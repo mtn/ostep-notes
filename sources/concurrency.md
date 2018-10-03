@@ -347,5 +347,42 @@ A final approach is to run code that can deadlock, but setup mechanisms to
 detect when it occurs and restart the system (doing whatever cleanup is
 necessary beforehand).
 
+## Event-based Concurrency
 
+Another approach to concurrency doesn't need threads, but instead is based
+around the idea of _events_. The appeal is much more control is granted to the
+programmer compared to the prior approach, where lots of behavior was determined
+by the scheduler (this can also be a downside, if the programmer accidentally
+blocks within an event loop).
 
+The basic flow is events are processed in a loop, and when a new event occurs we
+just check that type it is and act accordingly. In pseudocode:
+
+```
+loop {
+    for e in events {
+        proceessEvent(e)
+    }
+}
+```
+
+Basically, by deciding what to do based on the event, the user gets to "do
+scheduling" within the scope of their program. The basic API on linux is
+`select`, which allows a function to block until events are ready to be
+processed on a set of file descriptors.
+
+### Blocking calls and Asynchronous IO
+
+Making a blocking call in an event loop blocks the entire process, which is
+obviously undesirable. The solution is to make blocking calls asynchronous,
+tracking state in minimal data structures, and the OS delivers a signal when the
+request is completed. Upon receiving the signal, we can look at stored state to
+figure out what to do.
+
+### Other Problems
+
+There are other problems that are more difficult to deal with. In general,
+running event loops on multiple cores re-introduces the complexity we set out to
+avoid. Though we were able to deal with explicit blocking pretty well, there
+remains _implicit blocking_ due to things like page faults which we can't avoid.
+Finally, the interfaces the programmer needs to work with can be difficult.
