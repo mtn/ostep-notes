@@ -214,3 +214,67 @@ sleep, but when memory doesn't become available we don't want to accidentally
 wake up one that requested more than was newly freed. A simple but inefficient
 solution is to _broadcast_ signals to all processes, which then wake up and
 check if the condition they wanted is true, and go to sleep if it isn't.
+
+## Semaphores
+
+In POSIX, a _semaphore_ is a integer value plus an interface with two functions:
+`sem_wait` and `sem_post`.
+
+- `sem_wait` decrements the value of the semaphore and waits if the result is
+  negative (and returning immediately otherwise). Thus, when the value is
+  negative, it equals the number of waiting threads.
+- `sem_post` increments the value of the semaphore and wakes at most one waiting
+  thread
+
+### Using a Semaphore as a Lock
+
+To use a semaphore as a lock, we simply initialize the value to one. For this
+case, we can think of the value as the number of concurrent accesses to the
+section that we can allow. Semaphores used as locks are called _binary
+semaphores_.
+
+### Semaphores for Ordering
+
+Semaphores can also be used like condition variables for _ordering_ events. For
+example, we might often want to have a parent start a child process and then
+sleep until it finishes (and then be woken, rather than sleeping forever). To do
+this, we initialize the semaphore value as 0. When the child finishes, it'll
+increment the semaphore, so that the parent doesn't wait (as is desired). If the
+parent runs first, it'll be put to sleep by the call to `sem_wait` and awoken
+when the child finishes and increments the semaphore with `sem_post`.
+
+### Semaphores for the Producer-Consumer Problem
+
+To solve the producer consumer problem, we need two semaphores and two mutexes.
+The semaphores keep track of how many slots are empty and full in the buffer,
+allowing signals to properly be sent and received. Mutexes are used to avoid
+losing data -- a producer could fill the buffer, but be preempted before
+updating the semaphore. To avoid this problem, mutexes are used to ensure it's
+atomic.
+
+### Reader-Writer Locks
+
+One way to make locks more fine-grained is to distinguish between types of
+accesses. Since reads don't modify data structures, we can safely allow
+concurrent accesses (so long as nobody is writing at the same time). To make
+this work, we can have separate read and write locks, and have the first reader
+try to acquire the write lock, blocking any writers for the duration of the
+reads, as well as a read lock (which keeps track of the number of concurrent
+readers). We can also come up with fancier policies -- this one starves writers.
+
+### Dining Philosophers
+
+A canonical concurrency problem considers 5 philosophers eating in a circle,
+with 5 forks (one between each). Each need to use two forks to eat, so a naive
+solution to the problem is guarding each with a semaphore. The problem is this
+can result in _deadlock_, where everyone waits and nobody can make forward
+progress because they all end up grabbing one fork and waiting for another to
+become available. The solution is to have at least one have a different policy
+for how they grab forks (for example, trying to grab the right one before the
+left).
+
+### Implementing Semaphores
+
+Semaphores can be implemented with a lock, a condition variable, and a state
+variable. Basically, the entire `wait` and `post` operations are locked,
+ensuring they are updated atomically.
