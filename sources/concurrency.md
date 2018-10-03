@@ -178,3 +178,39 @@ lock.
 
 In general, scaling for more complex data structures involves protecting
 specific parts of the structure with locks, rather than having one global lock.
+
+## Condition Variables
+
+Besides locking data structures, we also want to be able to check _condition_
+and then conditionally continue execution (ex. `join`).
+
+### Definitions and Routines
+
+When a thread wants to wait for something, it an put itself in a queue to be
+awoken when a signal comes in for them (_condition variable_). On Unix, this is
+done with `pthread_cond_wait` and `pthread_cond_signal`.
+
+`wait` takes a lock, in order to avoid concurrency problems where the parent
+incorrectly detects the status of the child, which matters if it decides to call
+`join`. Since updating isn't an atomic operation, without a lock it could read
+an incorrect status and stay asleep forever.
+
+### Producers and Consumers
+
+A common situation is having a buffer where some process (_producer_) is putting
+stuff in, and another (_consumer_) is taking stuff out (for example, Unix
+pipes). Since this happens concurrently, we need to use locks somehow. This
+problem can be solved generally with two _condition variables_ indicating the
+number of available and filled slots in the buffer (so we know the exact status
+of the buffer and know which processes to signal when the buffer is completely
+full or empty).
+
+### Covering Conditions
+
+One common problem (encountered in the producer-consumer example) is dealing
+with uncertainty while sending and receiving signals. For example, when multiple
+processes request memory that isn't yet available, they might all be put to
+sleep, but when memory doesn't become available we don't want to accidentally
+wake up one that requested more than was newly freed. A simple but inefficient
+solution is to _broadcast_ signals to all processes, which then wake up and
+check if the condition they wanted is true, and go to sleep if it isn't.
