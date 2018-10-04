@@ -70,3 +70,60 @@ protocol for doing so, so specific code doesn't have to be written for each
 device. This motivates an abstraction called the _device driver_, which allows
 the OS to issue uniform read/write calls which are then passed through to
 devices in a neutral way.
+
+## Hard Disk Drives
+
+Hard disks provide a straightforward interface: there are many sectors (512-byte
+blocks) from which we can read and write. Writes within a single sector are
+generally guaranteed to be atomic, and accessing blocks that are near one
+another in the address space, or blocks in a contiguous chunk is generally much
+faster than random access.
+
+### Components
+- Data is stored on a _platter_, and modified magnetically. Platters are double
+  sided, and there can be more than one, connected to one _spindle_.
+- Data is encoded in concentric circles of sectors called _tracks_.
+- Reading and writing is done by _disk heads_, and there is one of these per
+  surface.
+- Each disk head is connected to a _disk arm_.
+
+### A Simple Disk Drive
+
+Consider a simple disk drive, with a single 12-sector track that rotates
+counter-clockwise.
+
+- _Rotation delay_ is the time spent waiting for the desired sector to rotate
+  under the disk head. Since the disk rotates in one direction, the worst case
+  requires nearly a full rotation.
+- For disks with multiple tracks, _seek time_ is the time spent positioning the
+  head on the correct track. It's one of the most costly operations because of
+  the precision required.
+- Because outer tracks have more room than inner ones, they usually have more
+  sectors. Tracks with the same number of sectors are grouped into _zones_.
+- Disks keep a _cache_ to quickly service requests.
+
+### IO Time
+
+The time to complete an IO request is the sum of the time spent seeking,
+rotating, and transferring data. Because time spent seeking and rotating is much
+larger for random workloads than sequential ones, we can observe 200-300x speed
+differences based on access patterns.
+
+### Disk Scheduling
+
+Because IO is generally costly, disks have their own scheduler to try and
+complete sets of requests as fast as possible. This allows the OS to issue
+a series of requests which can then be scheduled using internal disk information
+that the OS doesn't know. The general principle is _shortest job first_. When
+developing a policy we have to be careful to avoid _starvation_ where we ignore
+all requests that are far away. This is done by _sweeping_ from the outside to
+the inside of a disk, queueing requests for tracks it's already passed until the
+next sweep. Other policies consider rotation time as well.
+
+### Other questions
+
+There are a series of other potential things that we can consider:
+
+- Multiple IO request can be merged into one, decreasing overhead
+- IO requests can be held rather than immediately sent do disk, allowing
+  potentially better requests to come in
