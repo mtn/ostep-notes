@@ -209,7 +209,8 @@ We can deal with this if the scheduler is given the ability to preempt jobs.
 When the shorter jobs arrive after the long one has started, if running them
 right away would let them finish earlier, then the scheduler could preempt the
 long running job and only finish it after processing the short ones. This again
-improves turnaround time relative to SJF
+improves turnaround time relative to SJF. However, it also potentially leads to
+_starvation_ of long running processes, where they aren't given any time to run.
 
 ### Another Metric: Response Time
 
@@ -225,10 +226,10 @@ before it gets started at all.
 Motivated by improving average response time, Round Robin runs jobs for _time
 slices_ (some multiple of the timer-interrupt period) and then switches to the
 next, cycling through a run queue until jobs are finished. By cycling through
-each job quickly, rather than running one after another completion, RR achieves
-much improved average response time. Of course, we improve by this metric the
-shorter we make the _time slices_, but must avoid making them too small where
-the cost of context-switching would dominate.
+each job quickly, rather than running one after another till completion, RR
+achieves much improved average response time. Of course, we improve by this
+metric the shorter we make the _time slices_, but must avoid making them too
+small where the cost of context-switching would dominate.
 
 However, Round Robin is a poor policy by the turnaround time metric.
 Intuitively, this makes sense -- each job gets stretched out as long as it can.

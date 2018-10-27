@@ -173,7 +173,7 @@ to track all the chunks of memory that are unallocated within the region of
 managed memory.
 
 As we consider ways to minimize _external fragmentation_, we'll assume for
-simplicity that _compaction_ isn't possible, and that the managed memory reason
+simplicity that _compaction_ isn't possible, and that the managed memory region
 is a contiguous section of memory.
 
 ### Low-level Mechanisms
@@ -440,9 +440,11 @@ try to keep the amount of free space in memory between some _high and low
 watermarks_. From a high level, this is the flow of resolving a TLB miss:
 
 1) If the page is _valid_ and _present_, we grab the frame number from the page
-table an retry the request. 2) Otherwise, we generate a page fault. This could
-load the page. 3) The page could also not be valid, which raises another
-exception.
+table an retry the request.
+
+2) Otherwise, we generate a page fault. This could load the page.
+
+3) The page could also not be valid, which raises another exception.
 
 And all this happens transparently to the process.
 
@@ -534,7 +536,7 @@ read-only and only trapping when a write is attempted.
 
 The Linux virtual memory system also separates kernel and process address
 spaces, with kernel memory being the same for all processes. There are two types
-of kernel addressed: _logial addresses_ which directly map to physical memory
+of kernel addressed: _logical addresses_ which directly map to physical memory
 (and thus provide significant guarantees), and _virtual addresses_ which
 provides weaker guarantees but are easier to allocate. Most kernel data
 structures reside in logical memory.

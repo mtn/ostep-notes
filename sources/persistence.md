@@ -127,3 +127,17 @@ There are a series of other potential things that we can consider:
 - Multiple IO request can be merged into one, decreasing overhead
 - IO requests can be held rather than immediately sent do disk, allowing
   potentially better requests to come in
+
+## RAIDs
+
+RAIDs are _redundant arrays of inexpensive disks_. Depending on how you
+configure them, using multiple disks can enable improved _performance_,
+increased _capacity_, and improved _reliability_ (since data is replicated).
+These advantages can be enjoyed _transparently_ -- without having to change
+anything on the host system.
+
+### Interface and Internals
+
+To a file system, RAID is indistinguishable from a normal disk. When it receives
+a request, it calculates which disks can be used to fulfill it, and issues the
+physical IO requests.
